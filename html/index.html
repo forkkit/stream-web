@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+	<link rel="stylesheet" href="/stream/assets/stream.css">
     </head>
     <body>
         <nav class="navbar navbar-default">
@@ -19,14 +20,15 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-8">
-                    <h1>Stream Web</h1>
-                    <form class="stream">
-                        <div class="form-group">
-                            <label>Enter your name</label>
-                            <input type=text class="form-control" id="name" name="name" placeholder="John">
-                         </div>
-                        <button class="btn btn-default">Submit</button>
-                    </form>
+		  <ul class="list-inline" id="control">
+		    <li><a href="#" id="start">Start</a></li>
+		    <li><a href="#" id="stop">Stop</a></li>
+		    <!--<li><a href="#" id="flip">Flip</a></li>-->
+		  </ul>
+		  <p id="share"></p>
+		  <div id="video-container">
+		    <video id="camera-stream" width="500" autoplay></video>
+		  </div>
                 </div>
             </div>
             <div class="row">
@@ -36,33 +38,8 @@
             </div>
         </div>
 
-
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
         <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
-
-        <!-- You may want to store this in a separate file -->
-        <script type="text/javascript">
-            $(".stream").submit(function(e) {
-                e.preventDefault();
-
-		var url = window.location.href.replace(/\/$/, "") + "/stream/call";
-                var data = $(this).serializeArray()[0];
-                var name = data.value;
-                if (name.length == 0) {
-                    name = "John";
-                };
-
-                $.ajax({
-                    method: "POST",
-                    dataType: "json",
-                    contentType: "application/json",
-                    url: url,
-                    data: JSON.stringify({name: name}),
-                    success: function(data) {
-                        $('.message').html('<h3>'+data.msg+'</h3>');
-                    },
-                });
-            });
-        </script>
+ 	<script src="/stream/assets/stream.js"></script>
     </body>
 </html>
