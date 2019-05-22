@@ -49,7 +49,7 @@ function start(e) {
 		var url = proto + window.location.host + window.location.pathname + "/video?id=" + id;
 		var share = document.getElementById('share');
 
-		const FPS = 3;
+		const FPS = 9;
 		const ws = new WebSocket(url);
 		var send;
 
