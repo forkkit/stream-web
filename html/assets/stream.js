@@ -5,6 +5,31 @@ function uuid() {
   });
 }
 
+function getBlob(dataURI) {
+  // convert base64 to raw binary data held in a string
+  // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
+  var byteString = atob(dataURI.split(',')[1]);
+
+  // separate out the mime component
+  var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
+
+  // write the bytes of the string to an ArrayBuffer
+  var ab = new ArrayBuffer(byteString.length);
+
+  // create a view into the buffer
+  var ia = new Uint8Array(ab);
+
+  // set the bytes of the buffer to the correct values
+  for (var i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+  }
+
+  // write the ArrayBuffer to a blob, and you're done
+  var blob = new Blob([ab], {type: mimeString});
+  return blob;
+
+}
+
 function startClient(e) {
 	if (e != undefined) {
 		e.preventDefault();
@@ -26,12 +51,10 @@ function startClient(e) {
 	// video socket
 	ws.onopen = () => console.log(`Connected to ${url}`);
 	ws.onmessage = message => {
-	    var reader = new FileReader();
-	    reader.onload = function() {
-		img.src = reader.result;
-	    }
-	    reader.readAsText(message.data);
-	}
+		console.log("now");
+	    console.log(message.data);
+	    img.src = URL.createObjectURL(message.data);
+	};
 
 	// audio playback
 	var count = 0;
@@ -139,8 +162,8 @@ function startServer(e) {
 		    canvas.width = video.videoWidth;
 		    canvas.height = video.videoHeight;
 		    canvas.getContext('2d').drawImage(video, 0, 0);
-		    const data = canvas.toDataURL('image/png', 0.2);
-		    return data;
+		    const data = canvas.toDataURL('image/png', 0.2); //('image/png', 0.2);
+		    return getBlob(data);
 		}
 
 		// unique id for stream
@@ -179,7 +202,7 @@ function startServer(e) {
 		vws.onopen = () => {
 		    console.log(`Connected to ${vws}`);
 		    send = setInterval(() => {
-		        vws.send(getFrame());
+		        vws.send(getFrame(), {binary: true});
 		    }, 1000 / FPS);
 		}
 
