@@ -29,8 +29,11 @@ func main() {
 	// register html handler
 	service.Handle("/", http.FileServer(http.Dir("html")))
 
-	// register call handler
-	service.HandleFunc("/video", handler.StreamVideo)
+	// register video stream handler
+	service.HandleFunc("/video", handler.Stream("video"))
+
+	// register audio stream handler
+	service.HandleFunc("/audio", handler.Stream("audio"))
 
 	// run service
 	if err := service.Run(); err != nil {

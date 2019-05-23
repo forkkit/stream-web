@@ -5,7 +5,92 @@ function uuid() {
   });
 }
 
-function start(e) {
+function startClient(e) {
+	if (e != undefined) {
+		e.preventDefault();
+	}
+
+	var vid = document.getElementById('video-container');
+	var img = document.createElement('img');
+	vid.innerHTML = '';
+	vid.prepend(img);
+	
+	var proto = (window.location.protocol == "http:") ? "ws://" : "wss://"
+	var url = proto + window.location.host + window.location.pathname + "/video" + window.location.search;
+	var aurl = proto + window.location.host + window.location.pathname + "/audio" + window.location.search;
+
+	// new websocket
+	const ws = new WebSocket(url);
+	const aws = new WebSocket(aurl);
+
+	// video socket
+	ws.onopen = () => console.log(`Connected to ${url}`);
+	ws.onmessage = message => {
+	    var reader = new FileReader();
+	    reader.onload = function() {
+		img.src = reader.result;
+	    }
+	    reader.readAsText(message.data);
+	}
+
+	// audio playback
+	var count = 0;
+	var startTime;
+	var audioCtx = new AudioContext();
+
+	var playSound = function(buffer, playTime) {
+		var source = audioCtx.createBufferSource(2, 4096, audioCtx.sampleRate); //Create a new BufferSource fr the
+		source.buffer = buffer; // Put the sample content into the buffer
+		source.connect(audioCtx.destination); // Also Connect the source to the audio output
+		source.start(playTime); // Set the starting time of the sample to the scheduled play time
+	};
+
+	// audio socket
+	aws.onopen = () => console.log(`Connected to ${url}`);
+
+	aws.onmessage = message => {
+	    if (count == 0) {
+		startTime = audioCtx.currentTime;
+	    }
+
+	    var reader = new FileReader();
+	    reader.onload = function() {
+		
+		//audioCtx.decodeAudioData(reader.result, function(data) {
+		//	var buffer = data;	
+		//	count++; // Keep a count of how many messages have been received
+		//	var playTime = startTime + (count * 0.2); // Play each at file 200ms
+		//	playSound(buffer, playTime); //call the function to play the sample at the appropriate time
+		//}, function(e) { }); //console.log("err: " + e) });
+	    };
+	    reader.readAsArrayBuffer(message.data);
+	}
+
+	// controls
+	var stop = document.getElementById('stop');
+	stop.onclick = function(e) {
+		e.preventDefault();
+		ws.close();
+		aws.close();
+	}
+
+	// mute button
+	var mute = document.getElementById('mute')
+
+	mute.onclick = function(e) {
+		e.preventDefault();
+		var text = mute.innerText;
+		if (text == "Mute") {
+			mute.innerText = 'Unmute';
+			audioCtx.suspend();
+		} else {
+			mute.innerText = 'Mute';
+			audioCtx.resume();
+		}
+	};
+};
+
+function startServer(e) {
   e.preventDefault();
 
   // Normalize the various vendor prefixed versions of getUserMedia.
@@ -26,13 +111,27 @@ function start(e) {
 	    },
 
 	    // Success Callback
-	    function(localMediaStream) {
+	    function(stream) {
 		// Get a reference to the video element on the page.
 		var video = document.getElementById('camera-stream');
+		var mute = document.getElementById('mute')
 
 		// Create an object URL for the video stream and use this 
 		// to set the video source.
-		video.srcObject = localMediaStream
+		video.srcObject = stream
+		video.muted = true;
+
+		mute.onclick = function(e) {
+			e.preventDefault();
+			var text = mute.innerText;
+			if (text == "Mute") {
+				video.muted = true;
+				mute.innerText = 'Unmute';
+			} else {
+				video.muted = false;
+				mute.innerText = 'Mute';
+			}
+		};
 
 		// returns a frame encoded in base64
 		const getFrame = () => {
@@ -40,26 +139,51 @@ function start(e) {
 		    canvas.width = video.videoWidth;
 		    canvas.height = video.videoHeight;
 		    canvas.getContext('2d').drawImage(video, 0, 0);
-		    const data = canvas.toDataURL('image/png');
+		    const data = canvas.toDataURL('image/png', 0.2);
 		    return data;
 		}
 
+		// unique id for stream
 		var id = uuid()
+		// protocol
 		var proto = (window.location.protocol == "http:") ? "ws://" : "wss://"
-		var url = proto + window.location.host + window.location.pathname + "/video?id=" + id;
+		// video url
+		var vurl = proto + window.location.host + window.location.pathname + "/video?id=" + id;
+		// audio url
+		var aurl = proto + window.location.host + window.location.pathname + "/audio?id=" + id;
+		// share link
 		var share = document.getElementById('share');
 
+		// Frames per second
 		const FPS = 9;
-		const ws = new WebSocket(url);
+
+		// create websocket
+		const vws = new WebSocket(vurl);
+		const aws = new WebSocket(aurl);
+
 		var send;
 
-		ws.onopen = () => {
-		    console.log(`Connected to ${ws}`);
+	        var context = new AudioContext();
+	        var source = context.createMediaStreamSource(stream);
+	        var processor = context.createScriptProcessor(4096, 1, 1);
+
+	        source.connect(processor);
+	        processor.connect(context.destination);
+
+		// send the audio stream
+	        processor.onaudioprocess = function(e) {
+		  aws.send(e.inputBuffer, {binary: true});
+	        };
+
+		// send video stream to server
+		vws.onopen = () => {
+		    console.log(`Connected to ${vws}`);
 		    send = setInterval(() => {
-		        ws.send(getFrame());
+		        vws.send(getFrame());
 		    }, 1000 / FPS);
 		}
 
+		// create stop event
 		const stop = (e) => {
   		  e.preventDefault();
 		  var stream = video.srcObject;
@@ -71,8 +195,18 @@ function start(e) {
 		  }
 
 		  video.srcObject = null;
+
+		  source.disconnect();
+		  processor.disconnect();
+
+		  // clear the sender
 		  clearInterval(send)
-		  ws.close();
+
+		  // close the websockets
+		  vws.close();
+		  aws.close();
+
+		  // remove the share linke
 		  share.innerHTML = '';
 		}
 
@@ -107,36 +241,22 @@ function getParam(name) {
 
 window.onload = function() {
 	var front = false;
-
 	var id = getParam("id");
 	var type = getParam("type");
-
-	if (id.length > 0 && type == "client") {
-		document.getElementById('control').innerHTML = '';
-
-		var vid = document.getElementById('video-container');
-		var vcc = document.getElementById('camera-stream');
-		var img = document.createElement('img');
-		vid.removeChild(vcc);
-		vid.prepend(img);
-		
-		var proto = (window.location.protocol == "http:") ? "ws://" : "wss://"
-		var url = proto + window.location.host + window.location.pathname + "/video" + window.location.search;
-
-		// new websocket
-		const ws = new WebSocket(url);
-
-		ws.onopen = () => console.log(`Connected to ${url}`);
-		ws.onmessage = message => {
-		    // set the base64 string to the src tag of the image
-		    img.src = message.data;
-		}
-	} else {
-		// start stream
-		document.getElementById('start').onclick = start;
-	}
 
 	// flip camera
 	//document.getElementById('flip').onclick = function() { front = !front; };
 	//var constraints = { video: { facingMode: (front? "user" : "environment") } };
+
+	// start client or server
+	if (id.length > 0 && type == "client") {
+		startClient();
+
+		// start stream
+		document.getElementById('start').onclick = startClient;
+	} else {
+		// start stream
+		document.getElementById('start').onclick = startServer;
+	}
+
 }

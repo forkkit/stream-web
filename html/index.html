@@ -5,14 +5,14 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
-	<link rel="stylesheet" href="/stream/assets/stream.css">
+	<link rel="stylesheet" type="text/css" href="/stream/assets/stream.css">
     </head>
     <body>
         <nav class="navbar navbar-default">
             <div class="container">
                 <div class="navbar-header">
                     <a class="navbar-brand" href="#">
-                        Stream Web
+                        Stream
                     </a>
                 </div>
             </div>
@@ -21,13 +21,15 @@
             <div class="row">
                 <div class="col-md-8">
 		  <ul class="list-inline" id="control">
-		    <li><a href="#" id="start">Start</a></li>
-		    <li><a href="#" id="stop">Stop</a></li>
+		    <li><a href="#start" id="start">Start</a></li>
+		    <li><a href="#stop" id="stop">Stop</a></li>
+		    <li><a href="#mute" id="mute">Unmute</a></li>
 		    <!--<li><a href="#" id="flip">Flip</a></li>-->
 		  </ul>
 		  <p id="share"></p>
 		  <div id="video-container">
 		    <video id="camera-stream" width="500" autoplay></video>
+		    <audio></audio>
 		  </div>
                 </div>
             </div>

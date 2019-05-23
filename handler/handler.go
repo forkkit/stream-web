@@ -20,7 +20,7 @@ var (
 	Client proto.StreamService
 )
 
-func videoClient(w http.ResponseWriter, r *http.Request) {
+func clientStream(w http.ResponseWriter, r *http.Request, id string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
@@ -29,13 +29,14 @@ func videoClient(w http.ResponseWriter, r *http.Request) {
 
 	// subscribe to the stream
 	stream, err := Client.Subscribe(context.TODO(), &proto.SubscribeRequest{
-		Id: r.Form.Get("id"),
+		Id: id,
 	})
 
 	if err != nil {
-		fmt.Println("Subscribe error for", r.Form.Get("id"), err.Error())
+		fmt.Println("Subscribe error for", id, err.Error())
 		return
 	}
+	defer stream.Close()
 
 	for {
 		msg, err := stream.Recv()
@@ -45,31 +46,36 @@ func videoClient(w http.ResponseWriter, r *http.Request) {
 		}
 		// some other error
 		if err != nil {
-			fmt.Println("Stream receive error for", r.Form.Get("id"), err.Error())
+			fmt.Println("Stream receive error for", id, err.Error())
 			return
 		}
 		// write the data to the websocket
-		if err := conn.WriteMessage(websocket.TextMessage, msg.Data); err != nil {
-			fmt.Println("Write message error for", r.Form.Get("id"), err.Error())
+		if err := conn.WriteMessage(websocket.BinaryMessage, msg.Data); err != nil {
+			fmt.Println("Write message error for", id, err.Error())
 			return
 		}
 	}
 }
 
-func StreamVideo(w http.ResponseWriter, r *http.Request) {
+func serverStream(w http.ResponseWriter, r *http.Request, prefix string) {
 	r.ParseForm()
+
 	id := r.Form.Get("id")
 	typ := r.Form.Get("type")
 
+	// no id return error
 	if len(id) == 0 {
 		http.Error(w, "id not set", 500)
 		return
 	}
 
+	// create unique id for stream
+	id = fmt.Sprintf("%s-%s", prefix, id)
+
 	// client
 	if typ == "client" {
 		fmt.Println("Subscribing to stream", id)
-		videoClient(w, r)
+		clientStream(w, r, id)
 		return
 	}
 
@@ -81,7 +87,7 @@ func StreamVideo(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println("Publishing stream", id)
 
-	// create a video stream
+	// create a stream
 	_, err = Client.Create(context.TODO(), &proto.CreateRequest{
 		Id: id,
 	})
@@ -96,6 +102,7 @@ func StreamVideo(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error publishing stream", id, err.Error())
 		return
 	}
+	defer stream.Close()
 
 	// send loop
 	for {
@@ -116,5 +123,12 @@ func StreamVideo(w http.ResponseWriter, r *http.Request) {
 			fmt.Println("Error sending message", id, err.Error())
 			return
 		}
+	}
+}
+
+// Stream creates a server stream with the prefix provided
+func Stream(prefix string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		serverStream(w, r, prefix)
 	}
 }
